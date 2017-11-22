@@ -1,0 +1,166 @@
+#!/usr/bin/env node
+
+/**
+ * Module dependencies.
+ */
+
+var app = require('../app');
+var debug = require('debug')('untitled4:server');
+var http = require('http');
+
+/**
+ * Get port from environment and store in Express.
+ */
+
+var port = normalizePort(process.env.PORT || '3000');
+app.set('port', port);
+
+/**
+ * Create HTTP server.
+ */
+
+var server = http.createServer(app);
+
+/**
+ * Listen on provided port, on all network interfaces.
+ */
+
+server.listen(port);
+server.on('error', onError);
+server.on('listening', onListening);
+
+function runServer() {
+    server.on('error', function(e) {
+        if (e.code == 'EADDRINUSE') {
+            if (e.address === '0.0.0.0') {
+                e.address = 'localhost';
+            }
+
+            var socketURL = 'http' + '://' + e.address + ':' + e.port + '/';
+
+            console.log('------------------------------');
+            console.log('\x1b[31m%s\x1b[0m ', 'Unable to listen on port: ' + e.port);
+            console.log('\x1b[31m%s\x1b[0m ', socketURL + ' is already in use. Please kill below processes using "kill PID".');
+            console.log('------------------------------');
+
+            foo = new cmd_exec('lsof', ['-n', '-i4TCP:9001'],
+                function(me, data) {
+                    me.stdout += data.toString();
+                },
+                function(me) {
+                    me.exit = 1;
+                }
+            );
+
+            setTimeout(log_console, 250);
+        }
+    });
+
+    server = server.listen(port, function(error) {
+        var addr = server.address();
+
+        if (addr.address === '0.0.0.0') {
+            addr.address = 'localhost';
+        }
+
+        var domainURL = 'http' + '://' + addr.address + ':' + addr.port + '/';
+
+        console.log('------------------------------');
+
+        console.log('socket.io is listening at:');
+        console.log('\x1b[31m%s\x1b[0m ', '\t' + domainURL);
+
+        console.log('Your web-browser (HTML file) MUST set this line:');
+        console.log('\x1b[31m%s\x1b[0m ', 'connection.socketURL = "' + domainURL + '";');
+
+        console.log('------------------------------');
+        console.log('Need help? http://bit.ly/2ff7QGk');
+    });
+
+    require('./Signaling-Server.js')(server, function(socket) {
+        try {
+            var params = socket.handshake.query;
+            // "socket" object is totally in your own hands!
+            // do whatever you want!
+
+            // in your HTML page, you can access socket as following:
+            // connection.socketCustomEvent = 'custom-message';
+            // var socket = connection.getSocket();
+            // socket.emit(connection.socketCustomEvent, { test: true });
+
+            if (!params.socketCustomEvent) {
+                params.socketCustomEvent = 'custom-message';
+            }
+
+            socket.on(params.socketCustomEvent, function(message) {
+                try {
+                    console.log('test');
+                    socket.broadcast.emit(params.socketCustomEvent, message);
+                } catch (e) {}
+            });
+        } catch (e) {}
+    });
+}
+
+
+runServer();
+
+/**
+ * Normalize a port into a number, string, or false.
+ */
+
+function normalizePort(val) {
+  var port = parseInt(val, 10);
+
+  if (isNaN(port)) {
+    // named pipe
+    return val;
+  }
+
+  if (port >= 0) {
+    // port number
+    return port;
+  }
+
+  return false;
+}
+
+/**
+ * Event listener for HTTP server "error" event.
+ */
+
+function onError(error) {
+  if (error.syscall !== 'listen') {
+    throw error;
+  }
+
+  var bind = typeof port === 'string'
+    ? 'Pipe ' + port
+    : 'Port ' + port;
+
+  // handle specific listen errors with friendly messages
+  switch (error.code) {
+    case 'EACCES':
+      console.error(bind + ' requires elevated privileges');
+      process.exit(1);
+      break;
+    case 'EADDRINUSE':
+      console.error(bind + ' is already in use');
+      process.exit(1);
+      break;
+    default:
+      throw error;
+  }
+}
+
+/**
+ * Event listener for HTTP server "listening" event.
+ */
+
+function onListening() {
+  var addr = server.address();
+  var bind = typeof addr === 'string'
+    ? 'pipe ' + addr
+    : 'port ' + addr.port;
+  debug('Listening on ' + bind);
+}
